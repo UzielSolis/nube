@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node dist/.",
     "dev": "nodemon src/index.ts",
-    "build": "rimraf dist && tsc"
+    "build": "tsc"
   },
   "author": "USG",
   "license": "ISC",
