@@ -61,7 +61,7 @@ jobs:
   deploy:
     needs: docker
     runs-on: ubuntu-latest
-    environment: TEST
+    environment: examen_2
     if: github.ref == 'refs/heads/main'
     steps:
       - name: SSH into EC2 and Deploy
