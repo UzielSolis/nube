@@ -87,7 +87,7 @@ jobs:
 
             # Verificar si la imagen existe antes de intentar pull
             echo "Checking if image exists in ECR..."
-            IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:${{ github.run_id }}
+            IMAGE=https://us-east-1.console.aws.amazon.com/ecr/repositories/private/140955902203/pruebas-ci-cd?region=us-east-1
             if ! aws ecr describe-images --repository-name ${{ secrets.ECR_REPOSITORY }} --image-ids imageTag=${{ github.run_id }} --region ${{ secrets.AWS_DEFAULT_REGION }} > /dev/null 2>&1; then
               echo "Error: Image $IMAGE not found in ECR."
               exit 1
