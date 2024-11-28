@@ -24,7 +24,7 @@ jobs:
         run: npm install
 
       - name: Build TypeScript files
-        run: npm run build
+        run: npm run build 
 
   docker:
     needs: build
@@ -43,11 +43,11 @@ jobs:
           aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           aws configure set aws_session_token $AWS_SESSION_TOKEN
-          aws configure set default.region ${{ secrets.AWS_DEFAULT_REGION }}
+          aws configure set default.region us-east-1
 
       - name: Log in to Amazon ECR
         run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_DEFAULT_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com
 
       - name: Build Docker image
         run: |
@@ -72,39 +72,12 @@ jobs:
       - name: SSH into EC2 and Deploy
         run: |
           ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST_DEV }} << 'EOF'
-            set -euo pipefail  # Mejor manejo de errores
-
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             export AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
-
-            # Re-autenticación en ECR
-            echo "Logging into Amazon ECR..."
-            if ! aws ecr get-login-password --region ${{ secrets.AWS_DEFAULT_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com; then
-              echo "Error: AWS ECR login failed."
-              exit 1
-            fi
-
-            # Verificar si la imagen existe antes de intentar pull
-            echo "Checking if image exists in ECR..."
-            IMAGE=https://us-east-1.console.aws.amazon.com/ecr/repositories/private/140955902203/pruebas-ci-cd?region=us-east-1
-            if ! aws ecr describe-images --repository-name ${{ secrets.ECR_REPOSITORY }} --image-ids imageTag=${{ github.run_id }} --region ${{ secrets.AWS_DEFAULT_REGION }} > /dev/null 2>&1; then
-              echo "Error: Image $IMAGE not found in ECR."
-              exit 1
-            fi
-
-            # Pull de la imagen
-            echo "Pulling image from ECR..."
-            docker pull $IMAGE
-
-            # Detener y eliminar el contenedor si ya existe
-            echo "Stopping and removing old container (if exists)..."
+            $(aws ecr get-login-password --region ${{ secrets.AWS_DEFAULT_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com)
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:${{ github.run_id }}
             docker stop purple-container || true
             docker container rm -f purple-container || true
-
-            # Correr nuevo contenedor
-            echo "Running new container..."
-            docker run -d --name purple-container -p 8080:8080 $IMAGE
-
-            echo "Deployment complete!"
+            docker run -d --name purple-container -p 8080:8080 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:${{ github.run_id }}
           EOF
